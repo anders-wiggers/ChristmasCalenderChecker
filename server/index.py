@@ -6,10 +6,10 @@ import torch
 import torch.utils.data
 from PIL import Image
 import xml.etree.ElementTree as ET
-import transforms as T
+import depedencies.transforms as T
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import utils
+import depedencies.utils
 import time;
 
 from flask import Flask, jsonify, request, render_template
