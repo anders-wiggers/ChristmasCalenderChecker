@@ -11,9 +11,13 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import depedencies.utils
 import time;
+from depedencies.eval_helper import classes, checkPrice
 
 from flask import Flask, jsonify, request, render_template
 import io
+
+
+threshold=0.9
 
 app = Flask(__name__)
 ### Model
@@ -22,7 +26,7 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0')
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-m = torch.load('model/aug')
+m = torch.load('model/ccc.bfm')
 m.to(device)
 
 m.eval()
@@ -47,12 +51,10 @@ def countPeople(img):
 
 def countSave(img):
     custom_img = Image.open(io.BytesIO(img)).convert("RGB")
-    
-    height, weight = custom_img.size
-    custom_img = custom_img.resize((height*3,weight*3))
 
     custom_img = T.ToTensor()(custom_img,None)
     custom_img = custom_img[0]
+
     with torch.no_grad():
         pred = m([custom_img.to(device)])
 
@@ -66,12 +68,23 @@ def countSave(img):
     cmap = plt.get_cmap('tab20b')
     colors = [cmap(i) for i in np.linspace(0, 1, 20)]
 
+    counter = {
+      'juletrae':0,
+      'julemand':0,
+      'rensdyr':0,
+      'tromme':0,
+      'mistelten':0,
+      'lys':0,
+      'kugle':0,
+      'stjerne':0
+    }
 
-    person = 0
     for i in range(boxes.shape[0]):
-        if scores[i] > 0.9:
-            person = person + 1 
-            #print(i,boxes[i,:],labels[i],scores[i])
+        if scores[i] > threshold:
+        #cCount[labels[i]] = cCount[labels[i]] + 1
+            counter[classes[labels[i]]] = counter[classes[labels[i]]] + 1
+
+            #print(i,wboxes[i,:],labels[i],scores[i])
             x1 = boxes[i,0]
             y1 = boxes[i,1]
             box_w = boxes[i,2] - x1
@@ -80,14 +93,17 @@ def countSave(img):
             bbox = patches.Rectangle((x1, y1), box_w, box_h,
                         linewidth=2, edgecolor=color, facecolor='none')
             ax.add_patch(bbox)
-            plt.text(x1, y1, s='Person', 
-                         color='white', verticalalignment='top',
-                         bbox={'color': color, 'pad': 0})
+            plt.text(x1, y1-10, s=classes[labels[i]], 
+                            color='white', verticalalignment='top',
+                            bbox={'color': color, 'pad': 0})
+    print(counter)
+    win, price = checkPrice(counter)
+
     plt.axis('off')
     dirPath = os.getcwd() + '/processed_img/' + str(time.time()) + '.png'
     plt.savefig(dirPath)
     plt.close()
-    return(person)
+    return(counter)
 
 
 @app.route('/')
@@ -102,6 +118,6 @@ def predict():
         # convert that to bytes
         img_bytes = file.read()
         calResults = countSave(img_bytes)
-        return jsonify({'cal': calResult})
+        return jsonify({'cal': calResults})
 
       
